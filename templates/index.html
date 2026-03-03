@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Kraken Bot{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+    <!-- Bot Status Card -->
+    <div class="col-md-4">
+        <div class="card bg-dark border-secondary h-100"
+             hx-get="/partials/status"
+             hx-trigger="every 5s"
+             hx-swap="innerHTML">
+            {% include "partials/bot_status.html" %}
+        </div>
+    </div>
+
+    <!-- Portfolio Card -->
+    <div class="col-md-4">
+        <div class="card bg-dark border-secondary h-100"
+             hx-get="/partials/portfolio"
+             hx-trigger="every 10s"
+             hx-swap="innerHTML">
+            {% include "partials/portfolio.html" %}
+        </div>
+    </div>
+
+    <!-- Quick Actions Card -->
+    <div class="col-md-4">
+        <div class="card bg-dark border-secondary h-100">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-3">
+                    <i class="bi bi-gear me-1"></i>Actions
+                </h6>
+                <div class="d-grid gap-2">
+                    {% if running %}
+                    <button class="btn btn-warning btn-sm"
+                            hx-post="/api/bot/pause"
+                            hx-swap="none"
+                            hx-on::after-request="htmx.trigger(document.body, 'refreshStatus')">
+                        <i class="bi bi-pause-fill me-1"></i>Pause Bot
+                    </button>
+                    {% else %}
+                    <button class="btn btn-success btn-sm"
+                            hx-post="/api/bot/resume"
+                            hx-swap="none"
+                            hx-on::after-request="htmx.trigger(document.body, 'refreshStatus')">
+                        <i class="bi bi-play-fill me-1"></i>Resume Bot
+                    </button>
+                    {% endif %}
+                    {% if halted %}
+                    <button class="btn btn-danger btn-sm"
+                            hx-post="/api/risk/resume"
+                            hx-swap="none"
+                            hx-confirm="Reprendre le trading apres le halt drawdown ?"
+                            hx-on::after-request="htmx.trigger(document.body, 'refreshStatus')">
+                        <i class="bi bi-shield-exclamation me-1"></i>Resume Risk
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- P&L Chart -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-3">
+                    <i class="bi bi-graph-up me-1"></i>Portfolio Value (USD)
+                </h6>
+                <canvas id="pnlChart" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Trades & Signals -->
+<div class="row g-3">
+    <div class="col-md-7">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-3">
+                    <i class="bi bi-clock-history me-1"></i>Derniers Trades
+                </h6>
+                <div hx-get="/partials/trades"
+                     hx-trigger="every 10s"
+                     hx-swap="innerHTML">
+                    {% include "partials/trades_table.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-3">
+                    <i class="bi bi-lightning me-1"></i>Derniers Signaux
+                </h6>
+                <div hx-get="/partials/signals"
+                     hx-trigger="every 10s"
+                     hx-swap="innerHTML">
+                    {% include "partials/signals.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadPnLChart() {
+    try {
+        const resp = await fetch('/api/portfolio/history?limit=200');
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        const labels = data.map(d => {
+            const dt = new Date(d.timestamp);
+            return dt.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+        });
+        const values = data.map(d => d.total_usd);
+
+        const ctx = document.getElementById('pnlChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Portfolio USD',
+                    data: values,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: true, grid: { color: '#333' } },
+                    y: { display: true, grid: { color: '#333' } }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Failed to load PnL chart:', e);
+    }
+}
+loadPnLChart();
+setInterval(loadPnLChart, 60000);
+</script>
+{% endblock %}

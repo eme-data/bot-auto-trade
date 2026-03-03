@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Trades - Kraken Bot{% endblock %}
+
+{% block content %}
+<div class="card bg-dark border-secondary">
+    <div class="card-body">
+        <h5 class="card-title mb-3">
+            <i class="bi bi-clock-history me-1"></i>Historique des Trades
+        </h5>
+
+        <div class="table-responsive">
+            <table class="table table-dark table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Paire</th>
+                        <th>Side</th>
+                        <th>Type</th>
+                        <th>Prix</th>
+                        <th>Volume</th>
+                        <th>Fee</th>
+                        <th>Strategie</th>
+                        <th>Mode</th>
+                        <th>TXID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trade in trades %}
+                    <tr>
+                        <td class="text-muted small">{{ trade.timestamp[:19] }}</td>
+                        <td><strong>{{ trade.pair }}</strong></td>
+                        <td>
+                            {% if trade.side == 'buy' %}
+                            <span class="badge bg-success">BUY</span>
+                            {% else %}
+                            <span class="badge bg-danger">SELL</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ trade.order_type }}</td>
+                        <td>{{ "%.4f"|format(trade.price) if trade.price else '-' }}</td>
+                        <td>{{ "%.6f"|format(trade.volume) }}</td>
+                        <td>{{ "%.4f"|format(trade.fee) if trade.fee else '-' }}</td>
+                        <td><span class="badge bg-info text-dark">{{ trade.strategy }}</span></td>
+                        <td>
+                            {% if trade.dry_run %}
+                            <span class="badge bg-warning text-dark">DRY</span>
+                            {% else %}
+                            <span class="badge bg-primary">LIVE</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ trade.txid[:12] }}...</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">Aucun trade enregistre</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

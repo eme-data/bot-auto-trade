@@ -1,0 +1,24 @@
+{% for signal in signals %}
+<div class="d-flex align-items-start border-bottom border-secondary py-2">
+    <div class="me-2">
+        {% if signal.side == 'buy' %}
+        <i class="bi bi-arrow-up-circle-fill text-success"></i>
+        {% else %}
+        <i class="bi bi-arrow-down-circle-fill text-danger"></i>
+        {% endif %}
+    </div>
+    <div class="flex-grow-1">
+        <div class="d-flex justify-content-between">
+            <strong>{{ signal.pair }}</strong>
+            <span class="badge bg-{{ 'success' if signal.side == 'buy' else 'danger' }}">
+                {{ signal.side|upper }}
+            </span>
+        </div>
+        <small class="text-muted">
+            {{ signal.strategy }} &middot; {{ signal.timestamp[:16] }}
+        </small>
+    </div>
+</div>
+{% else %}
+<p class="text-muted text-center small">Aucun signal recent</p>
+{% endfor %}

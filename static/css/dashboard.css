@@ -1,0 +1,24 @@
+body {
+    background-color: #0d1117;
+    color: #e6edf3;
+}
+
+.card {
+    border-radius: 8px;
+}
+
+.navbar {
+    padding: 0.5rem 1rem;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.table-dark {
+    --bs-table-bg: transparent;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}

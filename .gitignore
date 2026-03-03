@@ -23,6 +23,10 @@ Thumbs.db
 # Logs
 *.log
 logs/
+data/logs/
+
+# Database
+*.db
 
 # Build
 dist/

@@ -1,0 +1,29 @@
+<div class="card-body">
+    <h6 class="card-title text-muted mb-3">
+        <i class="bi bi-wallet2 me-1"></i>Portfolio
+    </h6>
+    <h3 class="mb-1">${{ "%.2f"|format(portfolio_usd) }}</h3>
+    <div class="mb-3">
+        {% if drawdown > 0 %}
+        <small class="text-danger">
+            <i class="bi bi-arrow-down me-1"></i>Drawdown: {{ "%.2f"|format(drawdown * 100) }}%
+        </small>
+        {% else %}
+        <small class="text-success">
+            <i class="bi bi-check-circle me-1"></i>No drawdown
+        </small>
+        {% endif %}
+    </div>
+    {% if balances %}
+    <div class="small">
+        {% for asset, amount in balances.items() %}
+        <div class="d-flex justify-content-between border-bottom border-secondary py-1">
+            <span class="text-muted">{{ asset }}</span>
+            <span>{{ "%.6f"|format(amount) }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted small">En attente des donnees...</p>
+    {% endif %}
+</div>
