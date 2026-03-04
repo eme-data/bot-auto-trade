@@ -1,5 +1,5 @@
 import pandas as pd
-import pandas_ta as ta  # noqa: F401 — registers .ta accessor on DataFrame
+import pandas_ta_classic as ta  # noqa: F401 — registers .ta accessor on DataFrame
 
 
 def add_rsi(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
