@@ -19,7 +19,7 @@ COPY --from=builder /install /usr/local
 
 COPY --chown=botuser:botgroup . .
 
-RUN mkdir -p data/logs && chown -R botuser:botgroup data
+RUN mkdir -p data/logs && chown -R botuser:botgroup data /app
 
 USER botuser
 

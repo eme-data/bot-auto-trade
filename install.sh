@@ -144,7 +144,7 @@ DASH_PASS=${DASH_PASS}
 JWT_SECRET=${JWT_SECRET}
 ENVEOF
 
-chmod 600 "$INSTALL_DIR/.env"
+chmod 666 "$INSTALL_DIR/.env"
 ok "Fichier .env créé"
 
 # ============================================================================
