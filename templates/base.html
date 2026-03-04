@@ -20,6 +20,9 @@
             <div class="navbar-nav me-auto">
                 <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Dashboard</a>
                 <a class="nav-link {% if request.url.path == '/trades' %}active{% endif %}" href="/trades">Trades</a>
+                <a class="nav-link {% if request.url.path == '/admin' %}active{% endif %}" href="/admin">
+                    <i class="bi bi-gear me-1"></i>Admin
+                </a>
             </div>
             {% if user is defined and user %}
             <div class="navbar-nav">

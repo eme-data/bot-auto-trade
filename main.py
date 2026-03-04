@@ -21,16 +21,14 @@ async def lifespan(app: FastAPI):
 
     try:
         config = load_config()
-    except KeyError as e:
-        print(f"ERROR: Missing environment variable: {e}")
-        print("Copy .env.example to .env and fill in your credentials.")
-        sys.exit(1)
     except FileNotFoundError as e:
         print(f"ERROR: Config file not found: {e}")
         sys.exit(1)
 
     logger.info("Configuration loaded. dry_run=%s", config.bot.dry_run)
-    if not config.bot.dry_run:
+    if not config.api_configured:
+        logger.warning("API keys not configured — bot will start in idle mode. Configure via /admin.")
+    elif not config.bot.dry_run:
         logger.warning("*** LIVE TRADING MODE ***")
 
     bot = TradingBot(config)
@@ -64,7 +62,7 @@ if __name__ == "__main__":
     setup_logging()
     try:
         config = load_config()
-    except (KeyError, FileNotFoundError) as e:
+    except FileNotFoundError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
 

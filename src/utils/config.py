@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -67,14 +68,18 @@ class AppConfig:
     strategies: StrategiesConfig
     dashboard: DashboardConfig
 
+    @property
+    def api_configured(self) -> bool:
+        return bool(self.api_key and self.api_secret)
+
 
 def load_config(
     env_path: str = ".env",
     settings_path: str = "config/settings.yaml",
 ) -> AppConfig:
     load_dotenv(env_path)
-    api_key = os.environ["KRAKEN_API_KEY"]
-    api_secret = os.environ["KRAKEN_API_SECRET"]
+    api_key = os.environ.get("KRAKEN_API_KEY", "")
+    api_secret = os.environ.get("KRAKEN_API_SECRET", "")
 
     with open(settings_path) as f:
         raw: dict[str, Any] = yaml.safe_load(f)
@@ -93,3 +98,38 @@ def load_config(
         ),
         dashboard=DashboardConfig(**dash_raw),
     )
+
+
+def save_env(values: dict[str, str], env_path: str = ".env") -> None:
+    path = Path(env_path)
+    existing: dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                existing[k.strip()] = v.strip()
+    existing.update(values)
+    lines = [f"{k}={v}" for k, v in existing.items()]
+    path.write_text("\n".join(lines) + "\n")
+    # Also update current process env
+    for k, v in values.items():
+        os.environ[k] = v
+
+
+def save_settings(updates: dict[str, Any], settings_path: str = "config/settings.yaml") -> None:
+    path = Path(settings_path)
+    with open(path) as f:
+        raw = yaml.safe_load(f) or {}
+
+    def _deep_merge(base: dict, override: dict) -> dict:
+        for k, v in override.items():
+            if isinstance(v, dict) and isinstance(base.get(k), dict):
+                _deep_merge(base[k], v)
+            else:
+                base[k] = v
+        return base
+
+    _deep_merge(raw, updates)
+    with open(path, "w") as f:
+        yaml.dump(raw, f, default_flow_style=False, allow_unicode=True)

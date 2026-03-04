@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from ..utils.config import load_config, save_env, save_settings
 from ..utils.database import DB_PATH
 from .auth import (
     create_token,
@@ -68,14 +69,15 @@ async def dashboard(request: Request):
         name="index.html",
         context={
             "user": user,
-            "portfolio_usd": bot._portfolio.total_usd,
-            "balances": bot._portfolio.balances,
+            "portfolio_usd": bot._portfolio.total_usd if bot._portfolio else 0.0,
+            "balances": bot._portfolio.balances if bot._portfolio else {},
             "dry_run": bot.config.bot.dry_run,
             "running": bot.running,
+            "idle": bot.idle,
             "halted": bot._risk.is_halted,
             "strategies": [s.__class__.__name__ for s in bot._strategies],
             "pairs": bot.config.bot.trading_pairs,
-            "drawdown": bot._risk.get_drawdown(bot._portfolio.total_usd),
+            "drawdown": bot._risk.get_drawdown(bot._portfolio.total_usd if bot._portfolio else 0.0),
         },
     )
 
@@ -100,6 +102,94 @@ async def trades_page(request: Request):
     )
 
 
+@router.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    user = get_current_user_or_redirect(request, request.cookies.get("access_token"))
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    bot = request.app.state.bot
+    config = request.app.state.config
+    return templates.TemplateResponse(
+        request=request,
+        name="admin.html",
+        context={
+            "user": user,
+            "api_configured": config.api_configured,
+            "api_key_masked": config.api_key[:4] + "****" if config.api_key else "",
+            "bot_config": config.bot,
+            "risk_config": config.risk,
+            "strategies_config": config.strategies,
+            "idle": bot.idle,
+        },
+    )
+
+
+@router.post("/admin/keys")
+async def save_api_keys(
+    request: Request,
+    api_key: str = Form(...),
+    api_secret: str = Form(...),
+):
+    user = get_current_user_or_redirect(request, request.cookies.get("access_token"))
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    save_env({"KRAKEN_API_KEY": api_key, "KRAKEN_API_SECRET": api_secret})
+
+    # Reload config and reconfigure bot
+    config = load_config()
+    request.app.state.config = config
+    request.app.state.bot.reconfigure(config)
+
+    logger.info("API keys updated via admin panel")
+    return RedirectResponse(url="/admin?saved=keys", status_code=302)
+
+
+@router.post("/admin/settings")
+async def save_admin_settings(
+    request: Request,
+    dry_run: str = Form(""),
+    trading_pairs: str = Form(...),
+    poll_interval: int = Form(60),
+    max_position_pct: float = Form(5.0),
+    stop_loss_pct: float = Form(3.0),
+    max_drawdown_pct: float = Form(15.0),
+    max_open_positions: int = Form(3),
+    active_strategy: str = Form("technical"),
+):
+    user = get_current_user_or_redirect(request, request.cookies.get("access_token"))
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    pairs = [p.strip() for p in trading_pairs.split(",") if p.strip()]
+
+    save_settings({
+        "bot": {
+            "dry_run": dry_run == "on",
+            "trading_pairs": pairs,
+            "poll_interval_seconds": poll_interval,
+        },
+        "risk": {
+            "max_position_pct": max_position_pct,
+            "stop_loss_pct": stop_loss_pct,
+            "max_drawdown_pct": max_drawdown_pct,
+            "max_open_positions": max_open_positions,
+        },
+        "strategies": {
+            "active": active_strategy,
+        },
+    })
+
+    # Reload config
+    config = load_config()
+    request.app.state.config = config
+    request.app.state.bot.reconfigure(config)
+
+    logger.info("Settings updated via admin panel")
+    return RedirectResponse(url="/admin?saved=settings", status_code=302)
+
+
 # --- HTMX Partials ---
 
 
@@ -114,9 +204,9 @@ async def partial_portfolio(request: Request):
         request=request,
         name="partials/portfolio.html",
         context={
-            "portfolio_usd": bot._portfolio.total_usd,
-            "balances": bot._portfolio.balances,
-            "drawdown": bot._risk.get_drawdown(bot._portfolio.total_usd),
+            "portfolio_usd": bot._portfolio.total_usd if bot._portfolio else 0.0,
+            "balances": bot._portfolio.balances if bot._portfolio else {},
+            "drawdown": bot._risk.get_drawdown(bot._portfolio.total_usd if bot._portfolio else 0.0),
         },
     )
 
@@ -133,6 +223,7 @@ async def partial_status(request: Request):
         name="partials/bot_status.html",
         context={
             "running": bot.running,
+            "idle": bot.idle,
             "dry_run": bot.config.bot.dry_run,
             "halted": bot._risk.is_halted,
             "strategies": [s.__class__.__name__ for s in bot._strategies],

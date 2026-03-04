@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Admin - Kraken Bot{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <h4><i class="bi bi-gear me-2"></i>Administration</h4>
+    </div>
+
+    {% if request.query_params.get('saved') == 'keys' %}
+    <div class="col-12">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            Cl&eacute;s API sauvegard&eacute;es avec succ&egrave;s.
+            {% if idle %}Le bot va d&eacute;marrer automatiquement.{% endif %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+    {% endif %}
+    {% if request.query_params.get('saved') == 'settings' %}
+    <div class="col-12">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            Param&egrave;tres sauvegard&eacute;s avec succ&egrave;s. Un red&eacute;marrage peut &ecirc;tre n&eacute;cessaire.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- API Keys -->
+    <div class="col-lg-6">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header border-secondary">
+                <h5 class="mb-0">
+                    <i class="bi bi-key me-2"></i>Cl&eacute;s API Kraken
+                    {% if api_configured %}
+                    <span class="badge bg-success ms-2">Configur&eacute;</span>
+                    {% else %}
+                    <span class="badge bg-warning ms-2">Non configur&eacute;</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if not api_configured %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Les cl&eacute;s API ne sont pas configur&eacute;es. Le bot est en mode inactif.
+                    Entrez vos cl&eacute;s API Kraken pour activer le trading.
+                </div>
+                {% endif %}
+                <form method="POST" action="/admin/keys">
+                    <div class="mb-3">
+                        <label for="api_key" class="form-label">Cl&eacute; API</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary"
+                               id="api_key" name="api_key"
+                               placeholder="{% if api_configured %}{{ api_key_masked }}{% else %}Entrez votre cl&eacute; API Kraken{% endif %}"
+                               required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="api_secret" class="form-label">Secret API</label>
+                        <input type="password" class="form-control bg-dark text-light border-secondary"
+                               id="api_secret" name="api_secret"
+                               placeholder="{% if api_configured %}********{% else %}Entrez votre secret API Kraken{% endif %}"
+                               required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>
+                        {% if api_configured %}Mettre &agrave; jour{% else %}Configurer{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bot Status -->
+    <div class="col-lg-6">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header border-secondary">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Statut</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-dark table-borderless mb-0">
+                    <tr>
+                        <td class="text-muted">API Kraken</td>
+                        <td>
+                            {% if api_configured %}
+                            <span class="text-success"><i class="bi bi-check-circle"></i> Connect&eacute;</span>
+                            {% else %}
+                            <span class="text-warning"><i class="bi bi-exclamation-circle"></i> Non configur&eacute;</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Mode bot</td>
+                        <td>
+                            {% if idle %}
+                            <span class="text-secondary"><i class="bi bi-pause-circle"></i> Inactif</span>
+                            {% elif bot_config.dry_run %}
+                            <span class="text-info"><i class="bi bi-shield-check"></i> Dry Run</span>
+                            {% else %}
+                            <span class="text-success"><i class="bi bi-lightning"></i> Trading R&eacute;el</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Strat&eacute;gie</td>
+                        <td>{{ strategies_config.active | capitalize }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Paires</td>
+                        <td>{{ bot_config.trading_pairs | join(', ') }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bot Settings -->
+    <div class="col-lg-6">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header border-secondary">
+                <h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Param&egrave;tres du bot</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/admin/settings">
+                    <div class="mb-3 form-check form-switch">
+                        <input type="checkbox" class="form-check-input" id="dry_run" name="dry_run"
+                               {% if bot_config.dry_run %}checked{% endif %}>
+                        <label class="form-check-label" for="dry_run">Mode Dry Run (simulation)</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="trading_pairs" class="form-label">Paires de trading</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary"
+                               id="trading_pairs" name="trading_pairs"
+                               value="{{ bot_config.trading_pairs | join(', ') }}">
+                        <div class="form-text">S&eacute;par&eacute;es par des virgules (ex: XBT/USD, ETH/USD)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="poll_interval" class="form-label">Intervalle (secondes)</label>
+                        <input type="number" class="form-control bg-dark text-light border-secondary"
+                               id="poll_interval" name="poll_interval"
+                               value="{{ bot_config.poll_interval_seconds }}" min="10">
+                    </div>
+                    <div class="mb-3">
+                        <label for="active_strategy" class="form-label">Strat&eacute;gie active</label>
+                        <select class="form-select bg-dark text-light border-secondary"
+                                id="active_strategy" name="active_strategy">
+                            <option value="technical" {% if strategies_config.active == 'technical' %}selected{% endif %}>Technique (RSI, MACD, BB)</option>
+                            <option value="grid" {% if strategies_config.active == 'grid' %}selected{% endif %}>Grid Trading</option>
+                            <option value="both" {% if strategies_config.active == 'both' %}selected{% endif %}>Les deux</option>
+                        </select>
+                    </div>
+
+                    <hr class="border-secondary">
+                    <h6 class="text-muted mb-3">Gestion des risques</h6>
+
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label for="max_position_pct" class="form-label">Position max (%)</label>
+                            <input type="number" step="0.1" class="form-control bg-dark text-light border-secondary"
+                                   id="max_position_pct" name="max_position_pct"
+                                   value="{{ risk_config.max_position_pct }}">
+                        </div>
+                        <div class="col-6">
+                            <label for="stop_loss_pct" class="form-label">Stop Loss (%)</label>
+                            <input type="number" step="0.1" class="form-control bg-dark text-light border-secondary"
+                                   id="stop_loss_pct" name="stop_loss_pct"
+                                   value="{{ risk_config.stop_loss_pct }}">
+                        </div>
+                        <div class="col-6">
+                            <label for="max_drawdown_pct" class="form-label">Drawdown max (%)</label>
+                            <input type="number" step="0.1" class="form-control bg-dark text-light border-secondary"
+                                   id="max_drawdown_pct" name="max_drawdown_pct"
+                                   value="{{ risk_config.max_drawdown_pct }}">
+                        </div>
+                        <div class="col-6">
+                            <label for="max_open_positions" class="form-label">Positions max</label>
+                            <input type="number" class="form-control bg-dark text-light border-secondary"
+                                   id="max_open_positions" name="max_open_positions"
+                                   value="{{ risk_config.max_open_positions }}">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Sauvegarder les param&egrave;tres
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Credentials -->
+    <div class="col-lg-6">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header border-secondary">
+                <h5 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Informations</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    Les identifiants du dashboard sont d&eacute;finis dans le fichier <code>.env</code>
+                    (variables <code>DASH_USER</code> et <code>DASH_PASS</code>).
+                </p>
+                <p class="text-muted mb-3">
+                    Le <code>JWT_SECRET</code> est g&eacute;n&eacute;r&eacute; automatiquement lors de l'installation.
+                </p>
+                <hr class="border-secondary">
+                <h6 class="text-muted mb-2">Fichiers de configuration</h6>
+                <ul class="list-unstyled text-muted small">
+                    <li><code>.env</code> &mdash; Cl&eacute;s API et credentials</li>
+                    <li><code>config/settings.yaml</code> &mdash; Param&egrave;tres bot et strat&eacute;gies</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

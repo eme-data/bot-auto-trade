@@ -22,13 +22,19 @@ class TradingBot:
         self.config = config
         self._running = False
         self._paused = False
+        self._idle = not config.api_configured
         self._message_queue: asyncio.Queue = asyncio.Queue(maxsize=500)
 
-        self._rest = KrakenRESTClient(config.api_key, config.api_secret)
-        self._feed = KrakenFeed(self._message_queue)
+        if config.api_configured:
+            self._rest = KrakenRESTClient(config.api_key, config.api_secret)
+            self._feed = KrakenFeed(self._message_queue)
+        else:
+            self._rest = None
+            self._feed = None
+
         self._risk = RiskManager(config.risk)
-        self._execution = ExecutionEngine(self._rest, self._risk, config)
-        self._portfolio = PortfolioManager(self._rest)
+        self._execution = ExecutionEngine(self._rest, self._risk, config) if self._rest else None
+        self._portfolio = PortfolioManager(self._rest) if self._rest else None
 
         active = config.strategies.active
         self._strategies = []
@@ -41,7 +47,11 @@ class TradingBot:
 
     @property
     def running(self) -> bool:
-        return self._running and not self._paused
+        return self._running and not self._paused and not self._idle
+
+    @property
+    def idle(self) -> bool:
+        return self._idle
 
     def pause(self) -> None:
         self._paused = True
@@ -51,7 +61,37 @@ class TradingBot:
         self._paused = False
         logger.info("Bot resumed.")
 
+    def reconfigure(self, config: AppConfig) -> None:
+        """Reconfigure the bot with new settings (e.g. after API keys are set)."""
+        self.config = config
+        if config.api_configured:
+            self._rest = KrakenRESTClient(config.api_key, config.api_secret)
+            self._feed = KrakenFeed(self._message_queue)
+            self._execution = ExecutionEngine(self._rest, self._risk, config)
+            self._portfolio = PortfolioManager(self._rest)
+            self._idle = False
+            logger.info("Bot reconfigured with API keys — ready to trade.")
+        self._risk = RiskManager(config.risk)
+
     async def run(self) -> None:
+        await init_db()
+
+        if self._idle:
+            logger.info("Bot started in idle mode — API keys not configured.")
+            self._running = True
+            try:
+                while self._running:
+                    if not self._idle:
+                        break
+                    await asyncio.sleep(2)
+                if self._idle:
+                    return
+                # API keys were configured, start trading
+                logger.info("Exiting idle mode, starting trading...")
+            except asyncio.CancelledError:
+                logger.info("Bot idle cancelled.")
+                return
+
         logger.info(
             "Bot starting. dry_run=%s pairs=%s strategies=%s",
             self.config.bot.dry_run,
@@ -59,7 +99,6 @@ class TradingBot:
             [s.__class__.__name__ for s in self._strategies],
         )
 
-        await init_db()
         await self._bootstrap_ohlcv()
 
         self._running = True
@@ -219,8 +258,9 @@ class TradingBot:
 
     async def _shutdown(self) -> None:
         self._running = False
-        try:
-            await self._feed.close()
-        except Exception:
-            pass
+        if self._feed:
+            try:
+                await self._feed.close()
+            except Exception:
+                pass
         logger.info("Bot shut down cleanly.")

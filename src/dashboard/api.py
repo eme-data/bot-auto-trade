@@ -26,6 +26,8 @@ async def get_status(request: Request, _user: str = Depends(get_current_user)):
     bot = _get_bot(request)
     return {
         "running": bot.running,
+        "idle": bot.idle,
+        "api_configured": bot.config.api_configured,
         "dry_run": bot.config.bot.dry_run,
         "halted": bot._risk.is_halted,
         "strategies": [s.__class__.__name__ for s in bot._strategies],
@@ -38,9 +40,9 @@ async def get_status(request: Request, _user: str = Depends(get_current_user)):
 async def get_portfolio(request: Request, _user: str = Depends(get_current_user)):
     bot = _get_bot(request)
     return {
-        "total_usd": bot._portfolio.total_usd,
-        "balances": bot._portfolio.balances,
-        "drawdown": bot._risk.get_drawdown(bot._portfolio.total_usd),
+        "total_usd": bot._portfolio.total_usd if bot._portfolio else 0.0,
+        "balances": bot._portfolio.balances if bot._portfolio else {},
+        "drawdown": bot._risk.get_drawdown(bot._portfolio.total_usd if bot._portfolio else 0.0),
         "peak": bot._risk._peak_portfolio_value,
     }
 

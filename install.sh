@@ -109,15 +109,18 @@ if [[ -z "$LE_EMAIL" ]]; then
     error "L'email est obligatoire pour Let's Encrypt"
 fi
 
-read -rp "Clé API Kraken: " KRAKEN_KEY
-if [[ -z "$KRAKEN_KEY" ]]; then
-    error "La clé API Kraken est obligatoire"
-fi
+read -rp "Clé API Kraken (laisser vide pour configurer plus tard via /admin): " KRAKEN_KEY
+KRAKEN_KEY=${KRAKEN_KEY:-}
 
-read -rsp "Secret API Kraken: " KRAKEN_SECRET
-echo ""
-if [[ -z "$KRAKEN_SECRET" ]]; then
-    error "Le secret API Kraken est obligatoire"
+if [[ -n "$KRAKEN_KEY" ]]; then
+    read -rsp "Secret API Kraken: " KRAKEN_SECRET
+    echo ""
+    if [[ -z "$KRAKEN_SECRET" ]]; then
+        error "Le secret API Kraken est obligatoire si la clé est fournie"
+    fi
+else
+    KRAKEN_SECRET=""
+    warn "Clés API non configurées — vous pourrez les ajouter via l'interface /admin"
 fi
 
 read -rp "Identifiant dashboard [admin]: " DASH_USER
